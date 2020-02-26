@@ -13,13 +13,15 @@ import dataset_loader
 
 # c = class_counter(conf,datasets=None, n_classes=2)
 n,m,c = dataset_loader.data_shape(conf, datasets=None, n_classes=2)
-data = dataset_loader.DataBunch(*dataset_loader.get_dls(conf,n_classes = c),c)
+data_loaders = dataset_loader.get_dls(conf,n_classes = c)
+
 
 #initialize network
-import model_conf
+import nn_conf
 
 loss_func = torch.nn.CrossEntropyLoss() ##!replace with NLL later on
-learner = model_conf.Learner(*model_conf.get_model(conf,m,c), loss_func, data)
+# model,optimizer = get_model(conf,m,c)
+learner = nn_conf.Learner(*nn_conf.get_model(conf,m,c), loss_func, data_loaders)
 
 #train
 from trainer import fit

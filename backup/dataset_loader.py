@@ -8,16 +8,6 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
-class DataBunch():
-    def __init__(self, train_dl, valid_dl, c=None):
-        self.train_dl,self.valid_dl,self.c = train_dl,valid_dl,c
-        
-    @property
-    def train_ds(self): return self.train_dl.dataset
-        
-    @property
-    def valid_ds(self): return self.valid_dl.dataset
-
 def data_shape(conf, datasets=None, n_classes=None):
     if datasets == None:
         datasets = set_dataset(conf)
@@ -74,7 +64,7 @@ def get_dls(conf, datasets=None, n_classes=None, **kwargs):
     train_dl = DataLoader(datasets['train'], batch_size=conf.batch_size, shuffle=True, **kwargs)
     val_dl = DataLoader(datasets['val'], batch_size=conf.batch_size*2, **kwargs)
     
-    return train_dl, val_dl
+    return {'train':train_dl,'val':val_dl}
 
 
 

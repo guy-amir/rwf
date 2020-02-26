@@ -8,7 +8,7 @@ def fit(opts, learner): #model, loss_func, opt, train_dl, valid_dl):
 
         learner.model.train()
 
-        for i,(xb,yb) in enumerate(learner.data.train_dl):
+        for xb,yb in learner.data['train']:
             xb = xb.view(xb.shape[0],28*28)
             loss = learner.loss_func(learner.model(xb), yb)
             loss.backward()
@@ -19,14 +19,12 @@ def fit(opts, learner): #model, loss_func, opt, train_dl, valid_dl):
 
         with torch.no_grad():
             tot_loss,tot_acc = 0.,0.
-            for xb,yb in learner.data.valid_dl:
+            for xb,yb in learner.data['val']:
                 xb = xb.view(xb.shape[0],28*28)
                 pred = learner.model(xb)
-                ##! may be neccessary in future:
-                # pred = pred.clamp(min=1e-6, max=1) # resolve some numerical issue
                 tot_loss += learner.loss_func(pred, yb)
                 tot_acc  += accuracy(pred,yb)
-        nv = len(learner.data.valid_dl)
+        nv = len(learner.data['val'])
         print(epoch, tot_loss/nv, tot_acc/nv)
     return tot_loss/nv, tot_acc/nv
 
