@@ -78,7 +78,7 @@ def set_dataset(conf):
     #MNIST
     if conf.dataset == 'mnist':
         # training set
-        train_dataset = torchvision.datasets.MNIST('../data/mnist', train=True, 
+        train_dataset = torchvision.datasets.MNIST('./data/mnist', train=True, 
                                                    download=True,
                                                    transform=transforms.Compose([
                                                        transforms.ToTensor(),
@@ -87,7 +87,7 @@ def set_dataset(conf):
                                                    ]))
 
         # validation set
-        val_dataset = torchvision.datasets.MNIST('../data/mnist', train=False, 
+        val_dataset = torchvision.datasets.MNIST('./data/mnist', train=False, 
                                                   download=True,
                                                    transform=transforms.Compose([
                                                        transforms.ToTensor(),
@@ -99,7 +99,7 @@ def set_dataset(conf):
     # prepare Fashion-MNIST dataset
     if opt.dataset == 'fashionmnist':
         # training set
-        train_dataset = torchvision.datasets.FashionMNIST('../data/fashionmnist', train=True, 
+        train_dataset = torchvision.datasets.FashionMNIST('./data/fashionmnist', train=True, 
                                                    download=True,
                                                    transform=transforms.Compose([
                                                        transforms.ToTensor(),
@@ -108,7 +108,7 @@ def set_dataset(conf):
                                                    ])) #?check into normalize paramets for fminst
 
         # validation set
-        val_dataset = torchvision.datasets.FashionMNIST('../data/fashionmnist', train=False, 
+        val_dataset = torchvision.datasets.FashionMNIST('./data/fashionmnist', train=False, 
                                                   download=True,
                                                    transform=transforms.Compose([
                                                        transforms.ToTensor(),
@@ -132,11 +132,11 @@ def set_dataset(conf):
             transforms.Normalize((0.4914, 0.4822, 0.4465), 
                                  (0.2023, 0.1994, 0.2010)),
         ])        
-        train_dataset = torchvision.datasets.CIFAR10(root='../data/cifar10', 
+        train_dataset = torchvision.datasets.CIFAR10(root='./data/cifar10', 
                                                      train=True, 
                                                      download=True, 
                                                      transform=transform_train)
-        val_dataset = torchvision.datasets.CIFAR10(root='../data/cifar10', 
+        val_dataset = torchvision.datasets.CIFAR10(root='./data/cifar10', 
                                                     train=False, 
                                                     download=True, 
                                                     transform=transform_test)

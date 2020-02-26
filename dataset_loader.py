@@ -9,8 +9,8 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
 class DataBunch():
-    def __init__(self, train_dl, valid_dl, c=None):
-        self.train_dl,self.valid_dl,self.c = train_dl,valid_dl,c
+    def __init__(self, train_dl, valid_dl, c=None, features4tree=None):
+        self.train_dl,self.valid_dl,self.c,self.features4tree = train_dl,valid_dl,c,features4tree
         
     @property
     def train_ds(self): return self.train_dl.dataset
@@ -88,7 +88,7 @@ def set_dataset(conf):
     #MNIST
     if conf.dataset == 'mnist':
         # training set
-        train_dataset = torchvision.datasets.MNIST('../data/mnist', train=True, 
+        train_dataset = torchvision.datasets.MNIST('./data/mnist', train=True, 
                                                    download=True,
                                                    transform=transforms.Compose([
                                                        transforms.ToTensor(),
@@ -97,7 +97,7 @@ def set_dataset(conf):
                                                    ]))
 
         # validation set
-        val_dataset = torchvision.datasets.MNIST('../data/mnist', train=False, 
+        val_dataset = torchvision.datasets.MNIST('./data/mnist', train=False, 
                                                   download=True,
                                                    transform=transforms.Compose([
                                                        transforms.ToTensor(),
@@ -107,9 +107,9 @@ def set_dataset(conf):
         return {'train':train_dataset,'val':val_dataset}
 
     # prepare Fashion-MNIST dataset
-    if opt.dataset == 'fashionmnist':
+    if conf.dataset == 'fashionmnist':
         # training set
-        train_dataset = torchvision.datasets.FashionMNIST('../data/fashionmnist', train=True, 
+        train_dataset = torchvision.datasets.FashionMNIST('./data/fashionmnist', train=True, 
                                                    download=True,
                                                    transform=transforms.Compose([
                                                        transforms.ToTensor(),
@@ -118,7 +118,7 @@ def set_dataset(conf):
                                                    ])) #?check into normalize paramets for fminst
 
         # validation set
-        val_dataset = torchvision.datasets.FashionMNIST('../data/fashionmnist', train=False, 
+        val_dataset = torchvision.datasets.FashionMNIST('./data/fashionmnist', train=False, 
                                                   download=True,
                                                    transform=transforms.Compose([
                                                        transforms.ToTensor(),
@@ -142,11 +142,11 @@ def set_dataset(conf):
             transforms.Normalize((0.4914, 0.4822, 0.4465), 
                                  (0.2023, 0.1994, 0.2010)),
         ])        
-        train_dataset = torchvision.datasets.CIFAR10(root='../data/cifar10', 
+        train_dataset = torchvision.datasets.CIFAR10(root='./data/cifar10', 
                                                      train=True, 
                                                      download=True, 
                                                      transform=transform_train)
-        val_dataset = torchvision.datasets.CIFAR10(root='../data/cifar10', 
+        val_dataset = torchvision.datasets.CIFAR10(root='./data/cifar10', 
                                                     train=False, 
                                                     download=True, 
                                                     transform=transform_test)

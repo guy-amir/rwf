@@ -1,6 +1,6 @@
 #This file contains all the configuration aparameters
 
-class opts():
+class parameters():
     def __init__(self):
 
         #Dataset parameters:

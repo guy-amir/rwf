@@ -5,8 +5,8 @@ import torch
 ##!replace cross entropy with NLL later on
 
 #load configuration
-from params import opts
-conf = opts()
+from params import parameters
+conf = parameters()
 
 #load dataset
 import dataset_loader
@@ -17,16 +17,15 @@ data_loaders = dataset_loader.get_dls(conf,n_classes = c)
 
 
 #initialize network
-import nn_conf
+import model_conf
 
 loss_func = torch.nn.CrossEntropyLoss() ##!replace with NLL later on
 # model,optimizer = get_model(conf,m,c)
-learner = nn_conf.Learner(*nn_conf.get_model(conf,m,c), loss_func, data_loaders)
+learner = model_conf.Learner(*model_conf.get_model(conf,m,c), loss_func, data_loaders)
 
 #train
 from trainer import fit
 fit(conf,learner)
-# fit(opts, model, loss_func, opt, train_dl=data_loaders['train'], valid_dl=data_loaders['val'])
 
 #plot
 print("hi!")

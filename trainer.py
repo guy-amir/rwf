@@ -1,26 +1,33 @@
 #This is where the training loop takes place
 import torch
+from model_conf import entire_network
 
 def accuracy(out, yb): return (torch.argmax(out, dim=1)==yb).float().mean()
+def print_progress(epoch,batch_number):
+    if batch_number % 300 == 0:
+        print(f"epoch {epoch}, batch {batch_number}")
 
-def fit(opts, learner): #model, loss_func, opt, train_dl, valid_dl):
-    for epoch in range(opts.epochs):
+def fit(conf, learner): #model, loss_func, opt, train_dl, valid_dl):
+    for epoch in range(conf.epochs):
 
         learner.model.train()
 
         for i,(xb,yb) in enumerate(learner.data.train_dl):
-            xb = xb.view(xb.shape[0],28*28)
+            learner.model.every_batch(yb)
             loss = learner.loss_func(learner.model(xb), yb)
             loss.backward()
             learner.opt.step()
             learner.opt.zero_grad()
+
+            print_progress(epoch,i)
+
+        learner.model.every_epoch()
 
         learner.model.eval()
 
         with torch.no_grad():
             tot_loss,tot_acc = 0.,0.
             for xb,yb in learner.data.valid_dl:
-                xb = xb.view(xb.shape[0],28*28)
                 pred = learner.model(xb)
                 ##! may be neccessary in future:
                 # pred = pred.clamp(min=1e-6, max=1) # resolve some numerical issue
@@ -28,9 +35,11 @@ def fit(opts, learner): #model, loss_func, opt, train_dl, valid_dl):
                 tot_acc  += accuracy(pred,yb)
         nv = len(learner.data.valid_dl)
         print(epoch, tot_loss/nv, tot_acc/nv)
+        # learner.model.forest.trees[0].mu_cache = []
     return tot_loss/nv, tot_acc/nv
 
 ##! go over fast.ai #10 and deep-dive the hellouta these classes
+######################################################################################################################
 class Callback():
     _order = 0
     def set_runner(self, run): self.run = run

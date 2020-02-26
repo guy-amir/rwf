@@ -3,8 +3,8 @@ import torch
 
 def accuracy(out, yb): return (torch.argmax(out, dim=1)==yb).float().mean()
 
-def fit(opts, learner): #model, loss_func, opt, train_dl, valid_dl):
-    for epoch in range(opts.epochs):
+def fit(conf, learner): #model, loss_func, opt, train_dl, valid_dl):
+    for epoch in range(conf.epochs):
 
         learner.model.train()
 
