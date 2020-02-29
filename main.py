@@ -1,5 +1,6 @@
 #This the main script file it is intended to be minimal and to run all other parts of the code
 
+##! UPLOAD EVERTHING TO CUDA!!!
 ##!fix the class cropper
 ##!fix the data flattening 
 ##!replace cross entropy with NLL later on
@@ -10,8 +11,14 @@
 ##! check out cache
 ##! check out getting parametrs form command line
 ##! perhaps randomize target batches
+##! replace all .cuda() with torch.new
+##! add grad=False to all not learn
 
 import torch
+from functools import partial
+
+device = torch.device('cuda',0)
+torch.cuda.set_device(device)
 
 #load configuration
 from params import parameters
@@ -27,13 +34,21 @@ data = dataset_loader.DataBunch(*dataset_loader.get_dls(conf,n_classes = c),c,fe
 #initialize network
 import model_conf
 
-loss_func = torch.nn.CrossEntropyLoss() ##!replace with NLL later on
-learner = model_conf.Learner(*model_conf.get_model(conf,data), loss_func, data)
+loss_func = torch.nn.functional.nll_loss ##!replace with NLL later on
+learn = model_conf.Learner(*model_conf.get_model(conf,data), loss_func, data)
 
 #train
-from trainer import fit
-fit(conf,learner)
-# fit(conf, model, loss_func, opt, train_dl=data_loaders['train'], valid_dl=data_loaders['val'])
+import trainer
+from callbacks import *
+
+# from trainer import fit
+# fit(conf,learner)
+
+#add callbacks functionallity:
+# cbfs = [Recorder, partial(AvgStatsCallback,accuracy),partial(CudaCallback,device)]
+cbfs = [partial(AvgStatsCallback,accuracy),partial(CudaCallback,device)]
+run = trainer.Runner(cb_funcs=cbfs)
+run.fit(30, learn)
 
 #plot
 print("hi!")
