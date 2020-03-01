@@ -12,13 +12,13 @@ class parameters():
         #NN parameters:
 
         #Forest parameters:
-        self.n_trees = 1
+        self.n_trees = 2
 
         #Tree parameters:
-        self.tree_depth = 4
+        self.tree_depth = 6
 
         #Training parameters:
         self.epochs = 30
         self.batch_size = 64
         self.learning_rate = 0.001
-        self.weight_decay=1e-5
+        self.weight_decay=1e-6

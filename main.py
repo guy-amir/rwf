@@ -13,6 +13,7 @@
 ##! perhaps randomize target batches
 ##! replace all .cuda() with torch.new
 ##! add grad=False to all not learn
+##! add batchnorm
 
 import torch
 from functools import partial
@@ -45,8 +46,8 @@ from callbacks import *
 # fit(conf,learner)
 
 #add callbacks functionallity:
-# cbfs = [Recorder, partial(AvgStatsCallback,accuracy),partial(CudaCallback,device)]
-cbfs = [partial(AvgStatsCallback,accuracy),partial(CudaCallback,device)]
+cbfs = [Recorder, partial(AvgStatsCallback,accuracy),partial(CudaCallback,device),DeepNeuralForest]
+# cbfs = [partial(AvgStatsCallback,accuracy),partial(CudaCallback,device)]
 run = trainer.Runner(cb_funcs=cbfs)
 run.fit(30, learn)
 
