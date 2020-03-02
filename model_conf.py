@@ -21,7 +21,9 @@ class entire_network(nn.Module):
         self.nn_model = self.get_cnn_model(data)
         self.forest = Forest(conf, data)
         self.target_batches = []
+        self.data = data
         self.target_indicator = nn.Parameter(torch.eye(data.c))
+        
 
     def forward(self,x):
         nn_output_data = self.nn_model(x)

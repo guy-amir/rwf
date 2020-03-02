@@ -20,6 +20,24 @@ class Callback():
         if f and f(): return True
         return False
 
+class DeepNeuralForest(Callback):
+    _order=1
+    def begin_batch(self):
+        self.model.target_batches.append(self.model.target_indicator[self.run.yb])
+        
+    # def after_pred(self):
+    #     self.pred = torch.log(self.pred)
+
+    def after_epoch(self):
+        for tree in self.model.forest.trees:
+            tree.update_pi(self.model.target_batches)
+            del tree.mu_cache
+            tree.mu_cache = []
+            self.model.target_batches = []
+
+# class Softmax(Callback):
+#     continue
+
 class Recorder(Callback):
     def begin_fit(self):
         self.lrs = [[] for _ in self.opt.param_groups]

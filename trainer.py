@@ -79,14 +79,14 @@ class Runner():
             self.xb,self.yb = xb,yb
             ##! add to seperate callback later:
             #HT seperate_callback
-            self.model.every_batch(yb)
+            # self.model.every_batch(yb)
             self('begin_batch')
             self.pred = self.model(self.xb)
             self('after_pred')
             ##! make sure torch.log is part of seperate callback
             #HT seperate_callback
-            self.pred = torch.log(self.pred)
-            self.loss = self.loss_func(self.pred, self.yb)
+            #self.pred = torch.log(self.pred)
+            self.loss = self.loss_func(torch.log(self.pred), self.yb)
             self('after_loss')
             if not self.in_train: return
             self.loss.backward()
@@ -120,7 +120,7 @@ class Runner():
                 self('after_epoch')
                 ##! add to seperate callback later:
                 #HT seperate_callback
-                self.model.every_epoch()
+                # self.model.every_epoch()
             
         except CancelTrainException: self('after_cancel_train')
         finally:
