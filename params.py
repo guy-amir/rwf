@@ -16,7 +16,7 @@ class parameters():
 
         #Forest parameters:
         self.use_tree = use_tree
-        self.n_trees = 2
+        self.n_trees = 1
 
         #Tree parameters:
         self.tree_depth = 6
@@ -24,7 +24,7 @@ class parameters():
         self.softmax_normalization = True ##! replace softmax_normalization in tree_conf
 
         #Training parameters:
-        self.epochs = 1
+        self.epochs = 3
         self.batch_size = 128
         self.learning_rate = 0.001
         self.weight_decay=1e-5

@@ -1,5 +1,5 @@
-import torch
 import re
+import torch
 from typing import Iterable
 from wavelets import wavelet
 
@@ -43,23 +43,60 @@ class DeepNeuralWavelet(DeepNeuralForest):
     #     self.model.conf.wavelets = False
 
     def after_fit(self):
+        self.train_stats,self.valid_stats = AvgStats(accuracy,True),AvgStats(accuracy,False)
         # self.model.conf.wavelets = True
         with torch.no_grad(): 
             self.all_batches(self.data.valid_dl)
-            for tree in self.model.forest.trees:
-                tree.wavelet = wavelet(tree)
-                mean_mu = torch.mean(torch.stack(tree.mu_cache[:-1]),0)
+            for tree in self.model.forest.trees:         
+                # mean_mu = torch.mean(torch.stack(tree.mu_cache[:-1]),0)
                 ##! this should be running over each mu in mu_cache or each yb in loader
-                ##! mod pi remains constant for each cutoff of course
+                tree.wavelet = wavelet(tree)
                 for i in range(1,15):#range(2*(2**(opt.tree_depth))-1): 
-                    j=5*i
-                    leaf_list = tree.psi.cutoff(j)
+                    self.tot_loss = 0
+                    self.tot_acc = 0
+                    self.tot_samples = 0
+                    # ########################avg stats callback
+                    # self.train_stats.reset()
+                    # self.valid_stats.reset()
+                    # ########################end avg stats callback
+                    tree.psi.cutoff_value=5*i
+                    self.all_wavelet_batches(self.data.valid_dl,tree)
+                    
+                    # ########################avg stats callback
+                    print(f"\n cuttoff value is: {tree.psi.cutoff_value}")
+                    print(f"loss is {self.tot_loss}")
+                    print(f"acc is {self.tot_acc}")
+                    # print(self.train_stats)
+                    # print(self.valid_stats)
+                    # ########################end avg stats callback
 
-                    nu  = tree.psi.mod_mu(mean_mu,leaf_list)
-                    pu  = tree.psi.mod_pi(tree.pi,leaf_list)
-                    p = nu @ pu
-                    self.loss = self.loss_func(torch.log(p), self.yb)
-                    print("hi!!!")
+    def all_wavelet_batches(self, dl,tree):
+
+        self.iters = len(dl)
+        for i,[_,yb] in enumerate(dl): self.one_wavelet_batch(i,yb,tree)
+        
+        self.tot_acc = self.tot_acc/self.tot_samples
+        self.tot_loss = self.tot_loss/self.tot_samples
+    def one_wavelet_batch(self, i, yb, tree):
+        yb = yb.cuda()
+        leaf_list = tree.psi.cutoff(tree.psi.cutoff_value)
+        nu  = tree.psi.mod_mu(tree.mu_cache[i],leaf_list)
+        pu  = tree.psi.mod_pi(tree.pi,leaf_list)
+        p = nu @ pu
+        self.loss = float(self.loss_func(torch.log(p), yb))
+        self.tot_loss += self.loss*yb.size(0)
+        self.acc = accuracy(p,yb)
+        self.tot_acc += self.acc* yb.size(0)
+        self.tot_samples += yb.size(0)
+        
+        # ########################avg stats callback
+        # with torch.no_grad(): self.valid_stats.accumulate(self.run)
+        # ########################end avg stats callback
+        
+        ##! make sure torch.log is part of seperate callback
+        #HT seperate_callback
+        #self.pred = torch.log(self.pred)
+    
 
     #     # loss function                
     #     test_loss += F.nll_loss(torch.log(p), TARGET, reduction='sum').data.item() # sum up batch loss ##GG turned output to output[0] to avoid tuple error
@@ -77,16 +114,6 @@ class DeepNeuralWavelet(DeepNeuralForest):
     #     J.append(j)
     #     LOSS.append(test_loss)
     # return [J,LOSS]
-
-    def after_epoch(self):
-        for tree in self.model.forest.trees:
-            # if not self.model.conf.wavelets:
-                tree.update_pi(self.model.target_batches)
-                del tree.mu_cache
-                tree.mu_cache = []
-                self.model.target_batches = []
-            # else:
-            #     tree.w = wavelet(tree)
 
             
 
@@ -157,7 +184,7 @@ class AvgStats():
         return f"{'train' if self.in_train else 'valid'}: {self.avg_stats}"
 
     def accumulate(self, run):
-        bn = run.xb.shape[0]
+        bn = run.yb.shape[0]
         self.tot_loss += run.loss * bn
         self.count += bn
         for i,m in enumerate(self.metrics):

@@ -98,16 +98,3 @@ def square_data(x): return x.view(-1,1,28,28)
 #     for i in feature_shape:
 #         m *= i
 #     return m.item()
-
-#GG old get_model
-# def get_model(conf,data):
-    
-#     nh = 100 #hidden layer size
-#     m = flatten_feature_shape(feature_shape)
-#     # model_a = nn.Sequential(nn.Linear(m,nh), nn.ReLU(), nn.Linear(nh,m))
-#     model = nn.Sequential(nn.Linear(m,nh), nn.ReLU(), nn.Linear(nh,n_classes))
-#     # model = nn.Sequential(nn_model(m,n_classes),forest(...))
-    
-#     optimizer = torch.optim.SGD(model.parameters(), lr=conf.learning_rate)
-
-#     return model, optimizer

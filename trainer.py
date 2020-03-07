@@ -77,9 +77,6 @@ class Runner():
     def one_batch(self, xb, yb):
         try:
             self.xb,self.yb = xb,yb
-            ##! add to seperate callback later:
-            #HT seperate_callback
-            # self.model.every_batch(yb)
             self('begin_batch')
             self.pred = self.model(self.xb)
             self('after_pred')

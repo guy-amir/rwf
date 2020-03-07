@@ -4,6 +4,9 @@
 ##!fix the class cropper
 ##!fix the data flattening 
 ##!replace cross entropy with NLL later on
+##!having both wavelet and psi is redundant
+##!add layer for every additional tree
+##!average multiple tree data in wavelets like in regular training
 
 #in code from "visualizing NDF":
 ##! check out save flag
