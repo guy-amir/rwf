@@ -6,22 +6,23 @@ class Forest(nn.Module):
     def __init__(self, conf, data):
         super(Forest, self).__init__()
         self.trees = nn.ModuleList()
-        self.n_tree  = conf.n_trees
+        # self.n_tree  = conf.n_trees #remove
+        self.conf = conf
 
-        for _ in range(self.n_tree):
+        for _ in range(self.conf.n_trees):
             tree = Tree(conf, data)
             self.trees.append(tree)
 
-    def forward(self, x, save_flag = False, wavelets=None):
+    def forward(self, x, save_flag = False): #, wavelets=None):
         predictions = []
         cache = []
         for tree in self.trees: 
                 mu = tree(x)
-                if self.training:
+                if self.training or self.conf.wavelets:
                     tree.mu_cache.append(mu) #find a way to add a test/train switch for mu_cache
                 p = torch.mm(mu,tree.pi)
 
-                ##GG::
+                #GG::
                 # if wavelets:
                 #     ww = w.wavelet(tree)
                 #     leaf_list = ww.cutoff(50)
@@ -31,5 +32,5 @@ class Forest(nn.Module):
 
                 predictions.append(p.unsqueeze(2))
         prediction = torch.cat(predictions, dim=2)
-        prediction = torch.sum(prediction, dim=2)/self.n_tree
+        prediction = torch.sum(prediction, dim=2)/self.conf.n_trees
         return prediction

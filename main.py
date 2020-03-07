@@ -10,13 +10,16 @@
 ##! check out logger
 ##! check out cache
 ##! check out getting parametrs form command line
-##! perhaps randomize target batches
+##! perhaps ra5ndomize target batches
 ##! replace all .cuda() with torch.new
 ##! add grad=False to all not learn
 ##! add batchnorm
+##! fix issue with softmax_initialization:
+#   TypeError: cannot assign 'torch.cuda.FloatTensor' as parameter 'pi' (torch.nn.Parameter or None expected)
+
 
 import torch
-from functools import partial
+
 
 device = torch.device('cuda',0)
 torch.cuda.set_device(device)
@@ -40,20 +43,14 @@ learn = model_conf.Learner(*model_conf.get_model(conf,data), loss_func, data)
 
 #train
 import trainer
-from callbacks import *
-
-# from trainer import fit
-# fit(conf,learner)
 
 #add callbacks functionallity:
-cbfs = [Recorder, partial(AvgStatsCallback,accuracy),partial(CudaCallback,device),DeepNeuralForest]
-# cbfs = [partial(AvgStatsCallback,accuracy),partial(CudaCallback,device)]
-run = trainer.Runner(cb_funcs=cbfs)
-run.fit(30, learn)
+
+run = trainer.Runner(cb_funcs=conf.cbfs)
+run.fit(conf.epochs, learn)
 
 #plot
 print("hi!")
 
 # if __name__ == '__main__':
 #     main()
-

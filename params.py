@@ -1,7 +1,9 @@
 #This file contains all the configuration aparameters
+from callbacks import *
+from functools import partial
 
 class parameters():
-    def __init__(self):
+    def __init__(self,use_tree=True):
 
         #Computational parameters:
         self.set_CUDA = True
@@ -10,20 +12,29 @@ class parameters():
         self.dataset = 'mnist'
 
         #NN parameters:
+        self.batchnorm = True
 
         #Forest parameters:
+        self.use_tree = use_tree
         self.n_trees = 2
 
         #Tree parameters:
         self.tree_depth = 6
+        self.single_sigmoid = False
+        self.softmax_normalization = True ##! replace softmax_normalization in tree_conf
 
         #Training parameters:
-        self.epochs = 30
-        self.batch_size = 64
-<<<<<<< HEAD
-        self.learning_rate = 0.0001
-        self.weight_decay=1e-5
-=======
+        self.epochs = 1
+        self.batch_size = 128
         self.learning_rate = 0.001
-        self.weight_decay=1e-6
->>>>>>> ac0a82ef6a3bd0a02a5743e308c08c22f76e0a65
+        self.weight_decay=1e-5
+
+        #Wavelet parameters:
+        self.wavelets = True
+        self.cutoff = 30
+   
+
+        #Callback parameters
+        self.cbfs = [Recorder, partial(AvgStatsCallback,accuracy),partial(CudaCallback,device)]
+        if self.use_tree:
+            self.cbfs.append(DeepNeuralWavelet)

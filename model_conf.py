@@ -18,18 +18,30 @@ class entire_network(nn.Module):
     
     def __init__(self,conf,data):
         super(entire_network, self).__init__()
-        self.nn_model = self.get_cnn_model(data)
-        self.forest = Forest(conf, data)
+        if conf.use_tree:  
+            self.forest = Forest(conf, data)
+        self.target_indicator = nn.Parameter(torch.eye(data.c),requires_grad=False)
         self.target_batches = []
         self.data = data
-        self.target_indicator = nn.Parameter(torch.eye(data.c))
+        self.conf = conf
+        
+        self.nn_model = self.get_cnn_model(data)
+        # self.layers = len(self.nn_model)
+        # self.act_means = [[] for _ in self.nn_model]
+        # self.act_stds  = [[] for _ in self.nn_model]
         
 
     def forward(self,x):
         nn_output_data = self.nn_model(x)
-        predictions = self.forest(nn_output_data)
-
-        return predictions
+        # for i,l in enumerate(self.nn_model):
+        #     x = l(x)
+        #     self.act_means[i].append(x.data.mean())
+        #     self.act_stds[i].append(x.data.std())
+        # nn_output_data = x
+        if self.conf.use_tree:    
+            return self.forest(nn_output_data)
+        else:
+            return nn.functional.softmax(nn_output_data, dim=1)
 
     def every_batch(self,yb):
         self.target_batches.append(self.target_indicator[yb])
@@ -43,36 +55,30 @@ class entire_network(nn.Module):
             self.target_batches = []
 
     def get_cnn_model(self,data):
+
             self.conv_layers = nn.Sequential()
             self.conv_layers.add_module('square', Lambda(square_data))
             self.conv_layers.add_module('conv1', nn.Conv2d(1, 32, kernel_size=3, padding=1))
-            self.conv_layers.add_module('bn1', nn.BatchNorm2d(32))
+            if self.conf.batchnorm: self.conv_layers.add_module('bn1', nn.BatchNorm2d(32))
             self.conv_layers.add_module('relu1', nn.ReLU())
             self.conv_layers.add_module('pool1', nn.MaxPool2d(kernel_size=2))
             #self.add_module('drop1', nn.Dropout(dropout_rate))
             self.conv_layers.add_module('conv2', nn.Conv2d(32, 64, kernel_size=3, padding=1))
-            self.conv_layers.add_module('bn2', nn.BatchNorm2d(64))
+            if self.conf.batchnorm: self.conv_layers.add_module('bn2', nn.BatchNorm2d(64))
             self.conv_layers.add_module('relu2', nn.ReLU())
             self.conv_layers.add_module('pool2', nn.MaxPool2d(kernel_size=2))
             #self.add_module('drop2', nn.Dropout(dropout_rate))
             self.conv_layers.add_module('conv3', nn.Conv2d(64, 128, kernel_size=3, padding=1))
-            self.conv_layers.add_module('bn3', nn.BatchNorm2d(128))
+            if self.conf.batchnorm: self.conv_layers.add_module('bn3', nn.BatchNorm2d(128))
             self.conv_layers.add_module('relu3', nn.ReLU())
             self.conv_layers.add_module('pool3', nn.MaxPool2d(kernel_size=2))
             self.conv_layers.add_module('flatten', Lambda(flatten_data))
             self.conv_layers.add_module('linear', nn.Linear(1152,data.features4tree))
-            return self.conv_layers
-    # return nn.Sequential(
-    #     Lambda(square_data),
-    #     nn.Conv2d( 1, 8, 5, padding=2,stride=2), nn.ReLU(), #14
-    #     nn.Conv2d( 8,16, 3, padding=1,stride=2), nn.ReLU(), # 7
-    #     nn.Conv2d(16,32, 3, padding=1,stride=2), nn.ReLU(), # 4
-    #     nn.Conv2d(32,32, 3, padding=1,stride=2), nn.ReLU(), # 2
-    #     nn.AdaptiveAvgPool2d(1),
-    #     Lambda(flatten_data),
-    #     nn.Linear(32,data.features4tree)
-    # )
+            if self.conf.batchnorm: self.conv_layers.add_module('bn4', nn.BatchNorm1d(data.features4tree))
 
+            if self.conf.single_sigmoid:
+                self.conv_layers.add_module('linear2', nn.Linear(data.features4tree,1))
+            return self.conv_layers
 
 class Lambda(nn.Module):
     def __init__(self, func):
@@ -81,7 +87,7 @@ class Lambda(nn.Module):
 
     def forward(self, x): return self.func(x)
 
-def flatten_data(x):      return x.view(x.shape[0], -1)
+def flatten_data(x): return x.view(x.shape[0], -1)
 def square_data(x): return x.view(-1,1,28,28)
 
 ##! in the future compose feature that changes the data according to the nn input

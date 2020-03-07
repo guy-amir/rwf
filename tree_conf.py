@@ -13,27 +13,30 @@ class Tree(nn.Module):
         self.n_classes = data.c
         self.n_features = data.features4tree
         self.mu_cache = []
-
-        if data.features4tree < self.n_leaf:
-            self.feature_idx = np.random.choice(self.n_features, self.n_leaf, replace=True)
-        else:
-            self.feature_idx = np.random.choice(self.n_features, self.n_leaf, replace=False)
-        
-        #GG^ create a random vector of length n_leaf composed of numbers out of feature_length
-        #GG actually choosing the features for each leaf 
-        self.feature_mask = nn.Parameter(torch.eye(self.n_features)[self.feature_idx].t())
-        #GG^ feature mask is a tensor of size (n_features X feature_idx) with 1 at the location of each of the noted random variables
+        self.conf = conf
+        if not self.conf.single_sigmoid:
+            if data.features4tree < self.n_leaf:
+                self.feature_idx = np.random.choice(self.n_features, self.n_leaf, replace=True)
+            else:
+                self.feature_idx = np.random.choice(self.n_features, self.n_leaf, replace=False)
+            
+            #GG^ create a random vector of length n_leaf composed of numbers out of feature_length
+            #GG actually choosing the features for each leaf 
+            self.feature_mask = nn.Parameter(torch.eye(self.n_features)[self.feature_idx].t())
+            #GG^ feature mask is a tensor of size (n_features X feature_idx) with 1 at the location of each of the noted random variables
 
         self.pi = nn.Parameter(torch.ones((self.n_leaf, self.n_classes))/self.n_classes)
         self.decision = torch.nn.Sigmoid()
 
 
     def forward(self, x, save_flag = False):
-
-        feats = torch.mm(x, self.feature_mask) # ->[batch_size,n_leaf]
-        #GG^ x[batch size, feature_length] mm with feature_mask[feature_length,n_leaf]
-        #GG^ what this does is extract only the relevant features chosen from the feature mask
-        #  out of all the features in x
+        if self.conf.single_sigmoid:
+            feats = x @ torch.ones((1,64)).cuda()
+        else:
+            feats = torch.mm(x, self.feature_mask) # ->[batch_size,n_leaf]
+            #GG^ x[batch size, feature_length] mm with feature_mask[feature_length,n_leaf]
+            #GG^ what this does is extract only the relevant features chosen from the feature mask
+            #  out of all the features in x
         self.d = self.decision(feats)
          # passed sigmoid->[batch_size,n_leaf]
         self.d = torch.unsqueeze(self.d,dim=2) # ->[batch_size,n_leaf,1]
@@ -60,7 +63,7 @@ class Tree(nn.Module):
             mu = mu.repeat(1, 1, 2)
             # the routing probability at n_layer
             _decision = decision[:, begin_idx:end_idx, :] # -> [batch_size,2**n_layer,2]
-            #GG^ original decision tensor is [feature length, leaf_number,decision&compliment]
+            #GG^ original decision tensor is [batch size, leaf_number,decision&compliment]
             mu = mu*_decision # -> [batch_size,2**n_layer,2]
             begin_idx = end_idx
             end_idx = begin_idx + 2 ** (n_layer+1)
@@ -96,7 +99,7 @@ class Tree(nn.Module):
                     self.pi = nn.Parameter(nn.functional.softmax(new_pi, dim=1))
                 else:
                     Z = new_pi.sum(1) # Z is a normalising factor ensuring the sum of probabilities from each leaf to each class is 1
-                    self.pi = (new_pi.t()/Z).t() ##! add a smarter way to broadcast                    
+                    self.pi = torch.nn.Parameter(new_pi.t()/Z.t()) ##! add a smarter way to broadcast                    
                     ##! fix ^ to allow non-
 
 

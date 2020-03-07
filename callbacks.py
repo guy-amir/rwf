@@ -1,6 +1,7 @@
 import torch
 import re
 from typing import Iterable
+from wavelets import wavelet
 
 device = torch.device('cuda',0)
 torch.cuda.set_device(device)
@@ -35,6 +36,62 @@ class DeepNeuralForest(Callback):
             tree.mu_cache = []
             self.model.target_batches = []
 
+class DeepNeuralWavelet(DeepNeuralForest):
+    _order=1
+
+    # def begin_fit(self):
+    #     self.model.conf.wavelets = False
+
+    def after_fit(self):
+        # self.model.conf.wavelets = True
+        with torch.no_grad(): 
+            self.all_batches(self.data.valid_dl)
+            for tree in self.model.forest.trees:
+                tree.wavelet = wavelet(tree)
+                mean_mu = torch.mean(torch.stack(tree.mu_cache[:-1]),0)
+                ##! this should be running over each mu in mu_cache or each yb in loader
+                ##! mod pi remains constant for each cutoff of course
+                for i in range(1,15):#range(2*(2**(opt.tree_depth))-1): 
+                    j=5*i
+                    leaf_list = tree.psi.cutoff(j)
+
+                    nu  = tree.psi.mod_mu(mean_mu,leaf_list)
+                    pu  = tree.psi.mod_pi(tree.pi,leaf_list)
+                    p = nu @ pu
+                    self.loss = self.loss_func(torch.log(p), self.yb)
+                    print("hi!!!")
+
+    #     # loss function                
+    #     test_loss += F.nll_loss(torch.log(p), TARGET, reduction='sum').data.item() # sum up batch loss ##GG turned output to output[0] to avoid tuple error
+    #     # get class prediction
+    #     ##GG old: pred = output.data.max(1, keepdim = True)[1] # get the index of the max log-probability
+    #     ##GG mod:
+    #     pred = p.max(1, keepdim = True)[1]
+    #     # count correct prediction
+    #     correct += pred.eq(TARGET.data.view_as(pred)).cpu().sum()
+    #     # averaging
+    #     test_loss /= len(test_loader.dataset)
+    #     test_acc = int(correct) / len(dataset)
+    #     record = {'loss':test_loss, 'acc':test_acc, 'corr':correct, 'cutoff':j}
+    #     cutoff_record.append(record)
+    #     J.append(j)
+    #     LOSS.append(test_loss)
+    # return [J,LOSS]
+
+    def after_epoch(self):
+        for tree in self.model.forest.trees:
+            # if not self.model.conf.wavelets:
+                tree.update_pi(self.model.target_batches)
+                del tree.mu_cache
+                tree.mu_cache = []
+                self.model.target_batches = []
+            # else:
+            #     tree.w = wavelet(tree)
+
+            
+
+
+    
 # class Softmax(Callback):
 #     continue
 

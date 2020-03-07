@@ -118,9 +118,6 @@ class Runner():
                     if not self('begin_validate'): 
                         self.all_batches(self.data.valid_dl)
                 self('after_epoch')
-                ##! add to seperate callback later:
-                #HT seperate_callback
-                # self.model.every_epoch()
             
         except CancelTrainException: self('after_cancel_train')
         finally:
