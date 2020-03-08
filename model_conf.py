@@ -1,7 +1,6 @@
-#this is where the nn is defined
-import torch.nn as nn
 import torch
-from forest_conf import Forest
+import torch.nn as nn
+import torch.nn.functional as F
 
 class Learner():
     def __init__(self, model, opt, loss_func, data):
@@ -9,92 +8,68 @@ class Learner():
 
 def get_model(conf,data):
     
-    model = entire_network(conf,data)
+    model = Tree(conf,data)
     optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate , weight_decay=conf.weight_decay)
 
     return model, optimizer
 
-class entire_network(nn.Module):
-    
-    def __init__(self,conf,data):
-        super(entire_network, self).__init__()
-        if conf.use_tree:  
-            self.forest = Forest(conf, data)
-        self.target_indicator = nn.Parameter(torch.eye(data.c),requires_grad=False)
-        self.target_batches = []
-        self.data = data
+class tree_layers(nn.Module):
+    def __init__(self,input_dim):
+        super(tree_layers, self).__init__()
+        self.n_nodes = 15
+        self.linears = nn.ModuleList([nn.Linear(input_dim, input_dim) for i in range(self.n_nodes)])
+        print(self.linears)
+
+class Tree(nn.Module):
+    def __init__(self, conf, data):
+        super(Tree, self).__init__()
+        self.depth = conf.tree_depth
+        self.n_leaf = 2 ** conf.tree_depth
+        self.n_nodes = self.n_leaf#-1
+        self.n_features = data.features4tree
+        self.mu_cache = []
         self.conf = conf
+
+        self.fc1 = nn.ModuleList([nn.Linear(self.n_features, 4*self.n_features).float() for i in range(self.n_nodes)])
+        self.fc2 = nn.ModuleList([nn.Linear(4*self.n_features, self.n_features).float() for i in range(self.n_nodes)])
+        self.decision = torch.nn.Sigmoid()
+
+
+    def forward(self, x, save_flag = False):
+        self.d = []
+        for i,(layer1,layer2) in enumerate(zip(self.fc1,self.fc2)):
+            l = layer1(x)
+            r = F.sigmoid(x)
+            self.d.append(self.decision(layer2(l)))
+        self.d = torch.stack(self.d).permute(1,0,2)
+        # self.d=torch.unsqueeze(self.d,dim=2)# ->[batch_size,n_leaf,1]
+            #GG^ x[batch size, feature_length] mm with feature_mask[feature_length,n_leaf]
+            #GG^ what this does is extract only the relevant features chosen from the feature mask
+            #  out of all the features in x
+         # passed sigmoid->[batch_size,n_leaf]
+        decision = torch.cat((self.d,1-self.d),dim=2) # -> [batch_size,n_leaf,2]
+
+     
+        batch_size = x.size()[0]
         
-        self.nn_model = self.get_cnn_model(data)
-        # self.layers = len(self.nn_model)
-        # self.act_means = [[] for _ in self.nn_model]
-        # self.act_stds  = [[] for _ in self.nn_model]
+        mu = torch.ones(batch_size,1,1).cuda()
+        ##! may need to update CUDA
         
-
-    def forward(self,x):
-        nn_output_data = self.nn_model(x)
-        # for i,l in enumerate(self.nn_model):
-        #     x = l(x)
-        #     self.act_means[i].append(x.data.mean())
-        #     self.act_stds[i].append(x.data.std())
-        # nn_output_data = x
-        if self.conf.use_tree:    
-            return self.forest(nn_output_data)
-        else:
-            return nn.functional.softmax(nn_output_data, dim=1)
-
-    def every_batch(self,yb):
-        self.target_batches.append(self.target_indicator[yb])
-
-
-    def every_epoch(self):
-        for tree in self.forest.trees:
-            tree.update_pi(self.target_batches)
-            del tree.mu_cache
-            tree.mu_cache = []
-            self.target_batches = []
-
-    def get_cnn_model(self,data):
-
-            self.conv_layers = nn.Sequential()
-            self.conv_layers.add_module('square', Lambda(square_data))
-            self.conv_layers.add_module('conv1', nn.Conv2d(1, 32, kernel_size=3, padding=1))
-            if self.conf.batchnorm: self.conv_layers.add_module('bn1', nn.BatchNorm2d(32))
-            self.conv_layers.add_module('relu1', nn.ReLU())
-            self.conv_layers.add_module('pool1', nn.MaxPool2d(kernel_size=2))
-            #self.add_module('drop1', nn.Dropout(dropout_rate))
-            self.conv_layers.add_module('conv2', nn.Conv2d(32, 64, kernel_size=3, padding=1))
-            if self.conf.batchnorm: self.conv_layers.add_module('bn2', nn.BatchNorm2d(64))
-            self.conv_layers.add_module('relu2', nn.ReLU())
-            self.conv_layers.add_module('pool2', nn.MaxPool2d(kernel_size=2))
-            #self.add_module('drop2', nn.Dropout(dropout_rate))
-            self.conv_layers.add_module('conv3', nn.Conv2d(64, 128, kernel_size=3, padding=1))
-            if self.conf.batchnorm: self.conv_layers.add_module('bn3', nn.BatchNorm2d(128))
-            self.conv_layers.add_module('relu3', nn.ReLU())
-            self.conv_layers.add_module('pool3', nn.MaxPool2d(kernel_size=2))
-            self.conv_layers.add_module('flatten', Lambda(flatten_data))
-            self.conv_layers.add_module('linear', nn.Linear(1152,data.features4tree))
-            if self.conf.batchnorm: self.conv_layers.add_module('bn4', nn.BatchNorm1d(data.features4tree))
-
-            if self.conf.single_sigmoid:
-                self.conv_layers.add_module('linear2', nn.Linear(data.features4tree,1))
-            return self.conv_layers
-
-class Lambda(nn.Module):
-    def __init__(self, func):
-        super().__init__()
-        self.func = func
-
-    def forward(self, x): return self.func(x)
-
-def flatten_data(x): return x.view(x.shape[0], -1)
-def square_data(x): return x.view(-1,1,28,28)
-
-##! in the future compose feature that changes the data according to the nn input
-##! that feature will include:
-
-# def flatten_feature_shape(feature_shape):
-#     m = 1
-#     for i in feature_shape:
-#         m *= i
-#     return m.item()
+        begin_idx = 1
+        end_idx = 2
+        for n_layer in range(0, self.depth):
+            # mu stores the probability a sample is routed at certain node
+            # repeat it to be multiplied for left and right routing
+            mu = mu.repeat(1, 1, 2)
+            # the routing probability at n_layer
+            _decision = decision[:, begin_idx:end_idx, :] # -> [batch_size,2**n_layer,2]
+            #GG^ original decision tensor is [batch size, leaf_number,decision&compliment]
+            mu = mu*_decision # -> [batch_size,2**n_layer,2]
+            begin_idx = end_idx
+            end_idx = begin_idx + 2 ** (n_layer+1)
+            # merge left and right nodes to the same layer
+            mu = mu.view(batch_size, -1, 1)
+            #GG print(f'begin_idx: {begin_idx}, end_idx {end_idx}, delta {-begin_idx+end_idx}')
+        mu = mu.view(batch_size, -1)
+        
+        return mu

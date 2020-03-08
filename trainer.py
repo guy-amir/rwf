@@ -1,61 +1,9 @@
-#This is where the training loop takes place
-import torch
-from model_conf import entire_network
+from model_conf import *
 from typing import Iterable
 from callbacks import *
+import torch
+from model_conf import Tree
 
-def accuracy(out, yb): return (torch.argmax(out, dim=1)==yb).float().mean()
-
-def listify(o):
-    if o is None: return []
-    if isinstance(o, list): return o
-    if isinstance(o, str): return [o]
-    if isinstance(o, Iterable): return list(o)
-    return [o]
-
-def print_progress(epoch,batch_number):
-    # if batch_number % 300 == 0:
-    #     print(f"epoch {epoch}, batch {batch_number}")
-    if batch_number % 100 == 0:
-        print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(\
-            epoch, batch_idx * len(data), num_train,\
-            100. * batch_idx / len(train_loader), loss.data.item()))  
-
-def fit(conf, learner): #model, loss_func, opt, train_dl, valid_dl):
-    for epoch in range(conf.epochs):
-
-        learner.model.train()
-
-        for i,(xb,yb) in enumerate(learner.data.train_dl):
-            learner.model.every_batch(yb)
-            loss = learner.loss_func(torch.log(learner.model(xb)), yb)
-            loss.backward()
-            learner.opt.step()
-            learner.opt.zero_grad()
-
-            print_progress(epoch,i)
-
-        
-
-        learner.model.eval()
-
-        with torch.no_grad():
-            tot_loss,tot_acc = 0.,0.
-            for xb,yb in learner.data.valid_dl:
-                pred = learner.model(xb)
-                ##! may be neccessary in future:
-                pred = pred.clamp(min=1e-6, max=1) # resolve some numerical issue
-                tot_loss += learner.loss_func(torch.log(pred), yb)
-                tot_acc  += accuracy(pred,yb)
-        nv = len(learner.data.valid_dl)
-        print(f"epoch: {epoch}, loss: {tot_loss/nv}, accuracy: {tot_acc/nv}")
-        # learner.model.forest.trees[0].mu_cache = []
-
-        learner.model.every_epoch()
-    return tot_loss/nv, tot_acc/nv
-
-##! go over fast.ai #10 and deep-dive the hellouta these classes
-######################################################################################################################
 class Runner():
     def __init__(self, cbs=None, cb_funcs=None):
         cbs = listify(cbs)
@@ -78,12 +26,13 @@ class Runner():
         try:
             self.xb,self.yb = xb,yb
             self('begin_batch')
-            self.pred = self.model(self.xb)
+            self.mu = self.model(self.xb)
+            if self.in_train:
+                self.y_hat = self.yb @ self.mu
+            self.pred = self.mu @ self.y_hat
             self('after_pred')
-            ##! make sure torch.log is part of seperate callback
-            #HT seperate_callback
-            #self.pred = torch.log(self.pred)
-            self.loss = self.loss_func(torch.log(self.pred), self.yb)
+            
+            self.loss = self.loss_func(self.pred, self.yb)
             self('after_loss')
             if not self.in_train: return
             self.loss.backward()

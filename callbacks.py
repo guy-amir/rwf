@@ -1,7 +1,7 @@
 import re
 import torch
 from typing import Iterable
-from wavelets import wavelet
+import matplotlib.pyplot as plt
 
 device = torch.device('cuda',0)
 torch.cuda.set_device(device)
@@ -35,95 +35,13 @@ class DeepNeuralForest(Callback):
             del tree.mu_cache
             tree.mu_cache = []
             self.model.target_batches = []
-
-class DeepNeuralWavelet(DeepNeuralForest):
-    _order=1
-
-    # def begin_fit(self):
-    #     self.model.conf.wavelets = False
-
-    def after_fit(self):
-        self.train_stats,self.valid_stats = AvgStats(accuracy,True),AvgStats(accuracy,False)
-        # self.model.conf.wavelets = True
-        with torch.no_grad(): 
-            self.all_batches(self.data.valid_dl)
-            for tree in self.model.forest.trees:         
-                # mean_mu = torch.mean(torch.stack(tree.mu_cache[:-1]),0)
-                ##! this should be running over each mu in mu_cache or each yb in loader
-                tree.wavelet = wavelet(tree)
-                for i in range(1,15):#range(2*(2**(opt.tree_depth))-1): 
-                    self.tot_loss = 0
-                    self.tot_acc = 0
-                    self.tot_samples = 0
-                    # ########################avg stats callback
-                    # self.train_stats.reset()
-                    # self.valid_stats.reset()
-                    # ########################end avg stats callback
-                    tree.psi.cutoff_value=5*i
-                    self.all_wavelet_batches(self.data.valid_dl,tree)
-                    
-                    # ########################avg stats callback
-                    print(f"\n cuttoff value is: {tree.psi.cutoff_value}")
-                    print(f"loss is {self.tot_loss}")
-                    print(f"acc is {self.tot_acc}")
-                    # print(self.train_stats)
-                    # print(self.valid_stats)
-                    # ########################end avg stats callback
-
-    def all_wavelet_batches(self, dl,tree):
-
-        self.iters = len(dl)
-        for i,[_,yb] in enumerate(dl): self.one_wavelet_batch(i,yb,tree)
-        
-        self.tot_acc = self.tot_acc/self.tot_samples
-        self.tot_loss = self.tot_loss/self.tot_samples
-    def one_wavelet_batch(self, i, yb, tree):
-        yb = yb.cuda()
-        leaf_list = tree.psi.cutoff(tree.psi.cutoff_value)
-        nu  = tree.psi.mod_mu(tree.mu_cache[i],leaf_list)
-        pu  = tree.psi.mod_pi(tree.pi,leaf_list)
-        p = nu @ pu
-        self.loss = float(self.loss_func(torch.log(p), yb))
-        self.tot_loss += self.loss*yb.size(0)
-        self.acc = accuracy(p,yb)
-        self.tot_acc += self.acc* yb.size(0)
-        self.tot_samples += yb.size(0)
-        
-        # ########################avg stats callback
-        # with torch.no_grad(): self.valid_stats.accumulate(self.run)
-        # ########################end avg stats callback
-        
-        ##! make sure torch.log is part of seperate callback
-        #HT seperate_callback
-        #self.pred = torch.log(self.pred)
-    
-
-    #     # loss function                
-    #     test_loss += F.nll_loss(torch.log(p), TARGET, reduction='sum').data.item() # sum up batch loss ##GG turned output to output[0] to avoid tuple error
-    #     # get class prediction
-    #     ##GG old: pred = output.data.max(1, keepdim = True)[1] # get the index of the max log-probability
-    #     ##GG mod:
-    #     pred = p.max(1, keepdim = True)[1]
-    #     # count correct prediction
-    #     correct += pred.eq(TARGET.data.view_as(pred)).cpu().sum()
-    #     # averaging
-    #     test_loss /= len(test_loader.dataset)
-    #     test_acc = int(correct) / len(dataset)
-    #     record = {'loss':test_loss, 'acc':test_acc, 'corr':correct, 'cutoff':j}
-    #     cutoff_record.append(record)
-    #     J.append(j)
-    #     LOSS.append(test_loss)
-    # return [J,LOSS]
-
-            
-
-
     
 # class Softmax(Callback):
 #     continue
 
 class Recorder(Callback):
     def begin_fit(self):
+        self.pred_switch = False
         self.lrs = [[] for _ in self.opt.param_groups]
         self.losses = []
 
@@ -134,7 +52,16 @@ class Recorder(Callback):
 
     def plot_lr  (self, pgid=-1): plt.plot(self.lrs[pgid])
     def plot_loss(self, skip_last=0): plt.plot(self.losses[:len(self.losses)-skip_last])
-        
+
+    def after_fit(self):
+        with torch.no_grad(): 
+            self.in_train = True
+            self.one_batch(self.data.valid_dl.ds.x, self.data.valid_dl.ds.y)
+        self.record_pred()
+
+    def record_pred(self):
+        self.tot_pred = self.pred
+
     def plot(self, skip_last=0, pgid=-1):
         losses = [o.item() for o in self.losses]
         lrs    = self.lrs[pgid]
@@ -210,7 +137,7 @@ class CancelTrainException(Exception): pass
 class CancelEpochException(Exception): pass
 class CancelBatchException(Exception): pass
 
-def accuracy(out, yb): return (torch.argmax(out, dim=1)==yb).float().mean()
+def accuracy(pred, yb): return (pred-yb).pow(2).mean()
 
 _camel_re1 = re.compile('(.)([A-Z][a-z]+)')
 _camel_re2 = re.compile('([a-z0-9])([A-Z])')
