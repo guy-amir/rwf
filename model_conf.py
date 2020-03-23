@@ -3,13 +3,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class Learner():
+
+    # def weight_init(self,m):
+    #     if isinstance(m, nn.Linear):
+    #         nn.init.xavier_uniform_(m.weight.data)
+    #         m.bias.data.zero_()
+
     def __init__(self, model, opt, loss_func, data):
         self.model,self.opt,self.loss_func,self.data = model,opt,loss_func,data
+        # self.model.apply(self.weight_init)
 
 def get_model(conf,data):
     
     model = Tree(conf,data)
-    optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate , weight_decay=conf.weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate) # , weight_decay=conf.weight_decay)
 
     return model, optimizer
 
@@ -30,17 +37,27 @@ class Tree(nn.Module):
         self.mu_cache = []
         self.conf = conf
 
-        self.fc1 = nn.ModuleList([nn.Linear(self.n_features, 4*self.n_features).float() for i in range(self.n_nodes)])
-        self.fc2 = nn.ModuleList([nn.Linear(4*self.n_features, self.n_features).float() for i in range(self.n_nodes)])
+        ##! attend to number of features!
+        self.prenet = nn.Sequential(nn.Linear(self.n_features, 1024), nn.LeakyReLU(),nn.BatchNorm1d(num_features=1024), nn.Linear(1024, self.n_features), nn.LeakyReLU(),nn.BatchNorm1d(num_features=self.n_features))
+        # self.fc1 = nn.ModuleList([nn.Linear(self.n_features, self.n_features).float() for i in range(self.n_nodes)])
+        # self.bn1 = nn.ModuleList([nn.BatchNorm1d(num_features=self.n_features).float() for i in range(self.n_nodes)])
+        self.fc = nn.ModuleList([nn.Linear(self.n_features, self.n_features).float() for i in range(self.n_nodes)])
         self.decision = torch.nn.Sigmoid()
 
 
     def forward(self, x, save_flag = False):
         self.d = []
-        for i,(layer1,layer2) in enumerate(zip(self.fc1,self.fc2)):
-            l = layer1(x)
-            r = F.sigmoid(x)
-            self.d.append(self.decision(layer2(l)))
+        if (self.conf.use_prenet == True):
+            x = self.prenet(x)
+
+        if (self.conf.use_tree == False):
+            return x
+
+        for layer in self.fc:
+            l = layer(x)
+            # b = bn1(l)
+            # r = torch.sigmoid(x)
+            self.d.append(self.decision(l))
         self.d = torch.stack(self.d).permute(1,0,2)
         # self.d=torch.unsqueeze(self.d,dim=2)# ->[batch_size,n_leaf,1]
             #GG^ x[batch size, feature_length] mm with feature_mask[feature_length,n_leaf]
@@ -73,3 +90,4 @@ class Tree(nn.Module):
         mu = mu.view(batch_size, -1)
         
         return mu
+

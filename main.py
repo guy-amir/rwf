@@ -8,8 +8,8 @@ import trainer
 
 conf = parameters()
 
-x,y = step_gen(range = (0,1000),step=0.1)
-tdl,vdl = dl_maker(x,y,conf.batch_size)
+x,y = step_gen(range = (0,10000),step=0.1)
+tdl,vdl = dl_maker(x,y,conf)
 data = dataset_loader.DataBunch(tdl,vdl,c=1,features4tree=1)
 
 loss_func =  torch.nn.MSELoss()

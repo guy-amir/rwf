@@ -2,7 +2,7 @@ from callbacks import *
 from functools import partial
 
 class parameters():
-    def __init__(self,use_tree=True):
+    def __init__(self):
 
         #Computational parameters:
         self.set_CUDA = True
@@ -14,18 +14,21 @@ class parameters():
         # self.batchnorm = True
 
         #Forest parameters:
-        # self.use_tree = use_tree
+        self.use_tree = True
+        self.use_prenet = True
+
         self.n_trees = 1
 
         #Tree parameters:
-        self.tree_depth = 6
+        self.tree_depth = 10
         # self.single_sigmoid = False
         # self.softmax_normalization = True ##! replace softmax_normalization in tree_conf
 
         #Training parameters:
-        self.epochs = 20
+        self.epochs = 60
         self.batch_size = 64
-        self.learning_rate = 0.001
+        self.one_batch = True
+        self.learning_rate = 0.1
         self.weight_decay=1e-5
 
         #Wavelet parameters:

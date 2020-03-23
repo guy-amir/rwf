@@ -21,7 +21,7 @@ def print_progress(epoch,batch_number):
             epoch, batch_idx * len(data), num_train,\
             100. * batch_idx / len(train_loader), loss.data.item()))  
 
-def fit(conf, learner): #model, loss_func, opt, train_dl, valid_dl):
+def fit(conf, learner):
     for epoch in range(conf.epochs):
 
         learner.model.train()

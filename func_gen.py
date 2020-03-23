@@ -8,7 +8,7 @@ def step_gen(range = (0,10),step=0.1):
     x = np.arange(range[0],range[1], step)
     y = get_fun(x)
     x = x-np.mean(x)
-    x = x/np.max(x)
+    # x = x/np.max(x)
     return x,y
 
 def get_fun(x):
@@ -34,14 +34,20 @@ def split(x,y,percent=0.33):
     
 #     return zip(X,Y)
 
-def dl_maker(x,y, batch_size=64):
+def dl_maker(x,y, conf):
+    batch_size=conf.batch_size
     xt, xv, yt, yv = split(x,y)
     xt, xv, yt, yv =  map(torch.tensor, (xt, xv, yt, yv))
 
     train_ds,valid_ds = Dataset(xt.unsqueeze(1).float(), yt.float()),Dataset(xv.unsqueeze(1).float(), yv.float())
 
-    train_dl = DataLoader(train_ds, batch_size)
-    valid_dl = DataLoader(valid_ds, batch_size)
+    if conf.one_batch:
+        train_dl = DataLoader(train_ds, len(train_ds))
+        valid_dl = DataLoader(valid_ds, len(valid_ds))
+
+    else:
+        train_dl = DataLoader(train_ds, batch_size)
+        valid_dl = DataLoader(valid_ds, batch_size)
 
     return train_dl,valid_dl
 

@@ -10,7 +10,7 @@ class Learner():
 def get_model(conf,data):
     
     model = entire_network(conf,data)
-    optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate , weight_decay=conf.weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate) # , weight_decay=conf.weight_decay)
 
     return model, optimizer
 
