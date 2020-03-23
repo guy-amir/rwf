@@ -58,7 +58,7 @@ class Tree(nn.Module):
             # b = bn1(l)
             # r = torch.sigmoid(x)
             self.d.append(self.decision(l))
-        self.d = torch.stack(self.d).permute(1,0,2)
+        self.d = torch.stack(self.d).permute(1,0,2) #[batch_size,n_leafs,1]
         # self.d=torch.unsqueeze(self.d,dim=2)# ->[batch_size,n_leaf,1]
             #GG^ x[batch size, feature_length] mm with feature_mask[feature_length,n_leaf]
             #GG^ what this does is extract only the relevant features chosen from the feature mask
@@ -69,7 +69,7 @@ class Tree(nn.Module):
      
         batch_size = x.size()[0]
         
-        mu = torch.ones(batch_size,1,1).cuda()
+        mu = torch.ones(batch_size,2,1).cuda()
         ##! may need to update CUDA
         
         begin_idx = 1
@@ -77,17 +77,20 @@ class Tree(nn.Module):
         for n_layer in range(0, self.depth):
             # mu stores the probability a sample is routed at certain node
             # repeat it to be multiplied for left and right routing
-            mu = mu.repeat(1, 1, 2)
+            nu = mu[:, begin_idx:, :].repeat(1, 1, 2)
             # the routing probability at n_layer
             _decision = decision[:, begin_idx:end_idx, :] # -> [batch_size,2**n_layer,2]
             #GG^ original decision tensor is [batch size, leaf_number,decision&compliment]
-            mu = mu*_decision # -> [batch_size,2**n_layer,2]
+            nu = nu*_decision # -> [batch_size,2**n_layer,2]
             begin_idx = end_idx
             end_idx = begin_idx + 2 ** (n_layer+1)
             # merge left and right nodes to the same layer
-            mu = mu.view(batch_size, -1, 1)
+            nu = nu.view(batch_size, -1, 1)
             #GG print(f'begin_idx: {begin_idx}, end_idx {end_idx}, delta {-begin_idx+end_idx}')
-        mu = mu.view(batch_size, -1)
+            mu = torch.cat((mu,nu),1)
+
+        mu = mu.squeeze(-1)
+        mu[:,0] = 0
         
         return mu
 

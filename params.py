@@ -20,7 +20,7 @@ class parameters():
         self.n_trees = 1
 
         #Tree parameters:
-        self.tree_depth = 10
+        self.tree_depth = 2
         # self.single_sigmoid = False
         # self.softmax_normalization = True ##! replace softmax_normalization in tree_conf
 
