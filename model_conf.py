@@ -20,12 +20,12 @@ def get_model(conf,data):
 
     return model, optimizer
 
-class tree_layers(nn.Module):
-    def __init__(self,input_dim):
-        super(tree_layers, self).__init__()
-        self.n_nodes = 15
-        self.linears = nn.ModuleList([nn.Linear(input_dim, input_dim) for i in range(self.n_nodes)])
-        print(self.linears)
+# class tree_layers(nn.Module):
+#     def __init__(self,input_dim):
+#         super(tree_layers, self).__init__()
+#         self.n_nodes = 15
+#         self.linears = nn.ModuleList([nn.Linear(input_dim, input_dim) for i in range(self.n_nodes)])
+#         print(self.linears)
 
 class Tree(nn.Module):
     def __init__(self, conf, data):
@@ -38,7 +38,7 @@ class Tree(nn.Module):
         self.conf = conf
 
         ##! attend to number of features!
-        self.prenet = nn.Sequential(nn.Linear(self.n_features, 1024), nn.LeakyReLU(),nn.BatchNorm1d(num_features=1024), nn.Linear(1024, self.n_features), nn.LeakyReLU(),nn.BatchNorm1d(num_features=self.n_features))
+        self.prenet = nn.Sequential(nn.Linear(self.n_features, 16), nn.LeakyReLU(),nn.BatchNorm1d(num_features=16), nn.Linear(16, self.n_features), nn.LeakyReLU(),nn.BatchNorm1d(num_features=self.n_features))
         # self.fc1 = nn.ModuleList([nn.Linear(self.n_features, self.n_features).float() for i in range(self.n_nodes)])
         # self.bn1 = nn.ModuleList([nn.BatchNorm1d(num_features=self.n_features).float() for i in range(self.n_nodes)])
         self.fc = nn.ModuleList([nn.Linear(self.n_features, self.n_features).float() for i in range(self.n_nodes)])
@@ -66,7 +66,7 @@ class Tree(nn.Module):
          # passed sigmoid->[batch_size,n_leaf]
         decision = torch.cat((self.d,1-self.d),dim=2) # -> [batch_size,n_leaf,2]
 
-     
+        # with torch.no_grad():
         batch_size = x.size()[0]
         
         mu = torch.ones(batch_size,2,1).cuda()

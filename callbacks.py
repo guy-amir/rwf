@@ -2,6 +2,7 @@ import re
 import torch
 from typing import Iterable
 import matplotlib.pyplot as plt
+from wavelets import psi
 
 device = torch.device('cuda',0)
 torch.cuda.set_device(device)
@@ -21,20 +22,82 @@ class Callback():
         if f and f(): return True
         return False
 
-class DeepNeuralForest(Callback):
+# class DeepNeuralForest(Callback):
+#     _order=1
+ 
+#     # def begin_batch(self):
+#     #     self.model.target_batches.append(self.model.target_indicator[self.run.yb])
+        
+#     # def after_pred(self):
+#     #     self.pred = torch.log(self.pred)
+
+#     def after_epoch(self):
+#         for tree in self.model.forest.trees:
+#             tree.update_pi(self.model.target_batches)
+#             del tree.mu_cache
+#             tree.mu_cache = []
+#             self.model.target_batches = []
+
+class DeepNeuralWavelets(Callback):
     _order=1
-    def begin_batch(self):
-        self.model.target_batches.append(self.model.target_indicator[self.run.yb])
+    # def begin_batch(self):
+    #     self.model.target_batches.append(self.model.target_indicator[self.run.yb])
         
     # def after_pred(self):
     #     self.pred = torch.log(self.pred)
 
-    def after_epoch(self):
-        for tree in self.model.forest.trees:
-            tree.update_pi(self.model.target_batches)
-            del tree.mu_cache
-            tree.mu_cache = []
-            self.model.target_batches = []
+    
+    def after_fit(self):
+
+        self.train_stats,self.valid_stats = AvgStats(accuracy,True),AvgStats(accuracy,False)
+        
+
+        with torch.no_grad(): 
+            self.all_batches(self.data.valid_dl)
+            # for tree in self.model.forest.trees:         
+            # mean_mu = torch.mean(torch.stack(tree.mu_cache[:-1]),0)
+            ##! this should be running over each mu in mu_cache or each yb in loader
+            self.psi = psi(self)
+            for i in range(1,15):#range(2*(2**(opt.tree_depth))-1): 
+                self.tot_loss = 0
+                self.tot_acc = 0
+                self.tot_samples = 0
+                # ########################avg stats callback
+                # self.train_stats.reset()
+                # self.valid_stats.reset()
+                # ########################end avg stats callback
+                self.psi.cutoff_value=5*i
+                self.all_wavelet_batches(self.data.valid_dl,self)
+                
+                # ########################avg stats callback
+                print(f"\n cuttoff value is: {self.psi.cutoff_value}")
+                print(f"loss is {self.tot_loss}")
+                print(f"acc is {self.tot_acc}")
+                # print(self.train_stats)
+                # print(self.valid_stats)
+                # ########################end avg stats callback
+
+
+    def all_wavelet_batches(self, dl,tree):
+
+        self.iters = len(dl)
+        for i,[_,yb] in enumerate(dl): self.one_wavelet_batch(i,yb,tree)
+        
+        self.tot_acc = self.tot_acc/self.tot_samples
+        self.tot_loss = self.tot_loss/self.tot_samples
+
+    def one_wavelet_batch(self, i, yb, tree):
+        yb = yb.cuda()
+        leaf_list = tree.psi.cutoff(tree.psi.cutoff_value)
+        self.nu  = self.mu[:,leaf_list]
+        N = self.nu.sum(0)
+        self.pred = self.nu @ self.y_hat[leaf_list]
+        self.loss = float(self.loss_func(self.pred, yb))
+        self.tot_loss += self.loss*yb.size(0)
+        self.acc = accuracy(self.pred,yb)
+        self.tot_acc += self.acc* yb.size(0)
+        self.tot_samples += yb.size(0)
+
     
 # class Softmax(Callback):
 #     continue

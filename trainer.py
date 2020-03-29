@@ -5,7 +5,8 @@ import torch
 from model_conf import Tree
 
 class Runner():
-    def __init__(self, cbs=None, cb_funcs=None):
+    def __init__(self, cbs=None, cb_funcs=None,conf=None):
+        self.conf = conf
         cbs = listify(cbs)
         for cbf in listify(cb_funcs):
             cb = cbf()
@@ -26,10 +27,22 @@ class Runner():
         try:
             self.xb,self.yb = xb,yb
             self('begin_batch')
+
+            #construct routing probability tree:
             self.mu = self.model(self.xb)
+
+            #find the nodes that are leaves:
+            mu_midpoint = int(self.mu.size(1)/2)
+            self.mu_leaves = self.mu[:,mu_midpoint:]
+
+            #create a normalizing factor for leaves:
+            N = self.mu.sum(0)
+
             if self.in_train:
-                self.y_hat = self.yb @ self.mu
-            self.pred = self.mu @ self.y_hat
+                self.y_hat = self.yb @ self.mu/N
+                self.y_hat_leaves = self.y_hat[mu_midpoint:]
+
+            self.pred = self.mu_leaves @ self.y_hat_leaves
             self('after_pred')
             
             self.loss = self.loss_func(self.pred, self.yb)
@@ -51,6 +64,7 @@ class Runner():
 
     def fit(self, epochs, learner):
         self.epochs,self.learner,self.loss = epochs,learner,torch.tensor(0.)
+        self.in_train = self.learner.model.training
 
         try:
             for cb in self.cbs: cb.set_runner(self)

@@ -8,7 +8,7 @@ import trainer
 
 conf = parameters()
 
-x,y = step_gen(range = (0,10000),step=0.1)
+x,y = step_gen(range = (0,60),step=0.1)
 tdl,vdl = dl_maker(x,y,conf)
 data = dataset_loader.DataBunch(tdl,vdl,c=1,features4tree=1)
 
@@ -19,11 +19,7 @@ learn = model_conf.Learner(*model_conf.get_model(conf,data), loss_func, data)
 device = torch.device('cuda',0)
 torch.cuda.set_device(device)
 
-run = trainer.Runner(cb_funcs=conf.cbfs)
+run = trainer.Runner(cb_funcs=conf.cbfs,conf=None)
 run.fit(conf.epochs, learn)
 
 run.recorder.plot_lr()
-
-# from training import trainer
-# train = trainer(xt,yt)
-

@@ -13,14 +13,14 @@ class Forest(nn.Module):
             tree = Tree(conf, data)
             self.trees.append(tree)
 
-    def forward(self, x, save_flag = False): #, wavelets=None):
+    def forward(self, x, save_flag = False):
         predictions = []
         cache = []
         for tree in self.trees: 
                 mu = tree(x)
-                if self.training or self.conf.wavelets:
-                    tree.mu_cache.append(mu) #find a way to add a test/train switch for mu_cache
-                p = torch.mm(mu,tree.pi)
+                # if self.training or self.conf.wavelets:
+                #     tree.mu_cache.append(mu) #find a way to add a test/train switch for mu_cache
+                # p = torch.mm(mu,tree.pi)
 
                 #GG::
                 # if wavelets:
