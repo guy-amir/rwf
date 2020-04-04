@@ -20,12 +20,12 @@ class parameters():
         self.n_trees = 1
 
         #Tree parameters:
-        self.tree_depth = 8
+        self.tree_depth = 10
         # self.single_sigmoid = False
         # self.softmax_normalization = True ##! replace softmax_normalization in tree_conf
 
         #Training parameters:
-        self.epochs = 30
+        self.epochs = 200
         self.batch_size = 64
         self.one_batch = True
         self.learning_rate = 0.1
@@ -33,10 +33,10 @@ class parameters():
 
         #Wavelet parameters:
         self.wavelets = True
-        self.cutoff = 30
+        self.intervals = 30
    
 
         #Callback parameters
         self.cbfs = [Recorder, partial(AvgStatsCallback,accuracy),partial(CudaCallback,device)]
         if self.wavelets:
-            self.cbfs.append(DeepNeuralWavelets)
+            self.cbfs.append(wavelets)

@@ -22,23 +22,7 @@ class Callback():
         if f and f(): return True
         return False
 
-# class DeepNeuralForest(Callback):
-#     _order=1
- 
-#     # def begin_batch(self):
-#     #     self.model.target_batches.append(self.model.target_indicator[self.run.yb])
-        
-#     # def after_pred(self):
-#     #     self.pred = torch.log(self.pred)
-
-#     def after_epoch(self):
-#         for tree in self.model.forest.trees:
-#             tree.update_pi(self.model.target_batches)
-#             del tree.mu_cache
-#             tree.mu_cache = []
-#             self.model.target_batches = []
-
-class DeepNeuralWavelets(Callback):
+class wavelets(Callback):
     _order=1
     # def begin_batch(self):
     #     self.model.target_batches.append(self.model.target_indicator[self.run.yb])
@@ -47,7 +31,13 @@ class DeepNeuralWavelets(Callback):
     #     self.pred = torch.log(self.pred)
 
     
-    def after_fit(self):
+    def prune(self,even_cutoff):
+
+        self.wavelet_acc = []
+        self.wavelet_loss = []
+        self.nu_list = []
+        self.y_hat_list = []
+        self.wavelet_pred_list = []
 
         self.train_stats,self.valid_stats = AvgStats(accuracy,True),AvgStats(accuracy,False)
         
@@ -58,7 +48,8 @@ class DeepNeuralWavelets(Callback):
             # mean_mu = torch.mean(torch.stack(tree.mu_cache[:-1]),0)
             ##! this should be running over each mu in mu_cache or each yb in loader
             self.psi = psi(self)
-            for i in range(1,15):#range(2*(2**(opt.tree_depth))-1): 
+            self.psi.cutoff_value_list = []
+            for i in range(1,self.intervals):#range(2*(2**(opt.tree_depth))-1): 
                 self.tot_loss = 0
                 self.tot_acc = 0
                 self.tot_samples = 0
@@ -66,7 +57,15 @@ class DeepNeuralWavelets(Callback):
                 # self.train_stats.reset()
                 # self.valid_stats.reset()
                 # ########################end avg stats callback
-                self.psi.cutoff_value=5*i
+                if even_cutoff == True:
+                    self.psi.cutoff_value=int(self.mu.size(1)*i/self.intervals)
+                else:
+                    if i*5<self.model.mu.size(1):
+                        self.psi.cutoff_value=i*5
+                    else:
+                        self.psi.cutoff_value=self.model.mu.size(1)
+                self.psi.cutoff_value_list.append(self.psi.cutoff_value)
+                
                 self.all_wavelet_batches(self.data.valid_dl,self)
                 
                 # ########################avg stats callback
@@ -78,26 +77,31 @@ class DeepNeuralWavelets(Callback):
                 # ########################end avg stats callback
 
 
-    def all_wavelet_batches(self, dl,tree):
+    def all_wavelet_batches(self, dl,runner):
 
         self.iters = len(dl)
-        for i,[_,yb] in enumerate(dl): self.one_wavelet_batch(i,yb,tree)
+        for i,[_,yb] in enumerate(dl): self.one_wavelet_batch(i,yb,runner)
         
         self.tot_acc = self.tot_acc/self.tot_samples
+        self.wavelet_acc.append(self.tot_acc.cpu().numpy())
         self.tot_loss = self.tot_loss/self.tot_samples
+        self.wavelet_loss.append(self.tot_loss)
 
-    def one_wavelet_batch(self, i, yb, tree):
+    def one_wavelet_batch(self, i, yb, runner):
         yb = yb.cuda()
-        leaf_list = tree.psi.cutoff(tree.psi.cutoff_value)
-        self.nu  = self.mu[:,leaf_list]
+        leaf_list = runner.psi.cutoff(runner.psi.cutoff_value)
+        self.nu  = self.model.mu[:,leaf_list]
         N = self.nu.sum(0)
-        self.pred = self.nu @ self.y_hat[leaf_list]
+        self.pred = self.nu @ self.model.y_hat[leaf_list]
         self.loss = float(self.loss_func(self.pred, yb))
         self.tot_loss += self.loss*yb.size(0)
         self.acc = accuracy(self.pred,yb)
         self.tot_acc += self.acc* yb.size(0)
         self.tot_samples += yb.size(0)
 
+        self.nu_list.append(self.nu)
+        self.y_hat_list.append(self.model.y_hat[leaf_list])
+        self.wavelet_pred_list.append(self.pred)
     
 # class Softmax(Callback):
 #     continue

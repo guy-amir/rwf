@@ -15,7 +15,7 @@ class Learner():
 
 def get_model(conf,data):
     
-    model = Tree(conf,data)
+    model = Forest(conf,data)
     optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate) # , weight_decay=conf.weight_decay)
 
     return model, optimizer
@@ -26,6 +26,57 @@ def get_model(conf,data):
 #         self.n_nodes = 15
 #         self.linears = nn.ModuleList([nn.Linear(input_dim, input_dim) for i in range(self.n_nodes)])
 #         print(self.linears)
+
+class Forest(nn.Module):
+    def __init__(self, conf, data):
+        super(Forest, self).__init__()
+        self.trees = nn.ModuleList()
+        self.conf = conf
+
+        for _ in range(self.conf.n_trees):
+            tree = Tree(conf, data)
+            self.trees.append(tree)
+
+    def forward(self, xb,yb=None):
+        self.predictions = []
+        if self.training:
+
+            self.y_hat_avg= []
+        self.mu = []
+
+        for tree in self.trees: 
+                
+            #construct routing probability tree:
+            mu = tree(xb)
+
+            #find the nodes that are leaves:
+            mu_midpoint = int(mu.size(1)/2)
+            mu_leaves = mu[:,mu_midpoint:]
+
+            #create a normalizing factor for leaves:
+            N = mu.sum(0)
+
+            if self.training:
+                self.y_hat = yb @ mu/N
+                y_hat_leaves = self.y_hat[mu_midpoint:]
+                self.y_hat_avg.append(self.y_hat.unsqueeze(1))
+            else:
+                y_hat_leaves = self.y_hat_avg[mu_midpoint:]
+            pred = mu_leaves @ y_hat_leaves
+
+            self.predictions.append(pred.unsqueeze(1))
+            self.mu.append(mu.unsqueeze(1))
+            
+        self.mu = torch.cat(self.mu, dim=1)
+        self.mu = torch.sum(self.mu, dim=1)/self.conf.n_trees
+
+        if self.training:
+            self.y_hat_avg = torch.cat(self.y_hat_avg, dim=1)
+            self.y_hat_avg = torch.sum(self.y_hat_avg, dim=1)/self.conf.n_trees
+
+        self.prediction = torch.cat(self.predictions, dim=1)
+        self.prediction = torch.sum(self.prediction, dim=1)/self.conf.n_trees
+        return self.prediction
 
 class Tree(nn.Module):
     def __init__(self, conf, data):

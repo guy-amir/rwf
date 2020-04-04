@@ -4,13 +4,14 @@ import torch
 from dataset_loader import Dataset, DataLoader
 
 def step_gen(range = (0,10),step=0.1):
-    midpoint = (range[1] - range[0])/2+range[0]
+    # midpoint = (range[1] - range[0])/2+range[0]
     x = np.arange(range[0],range[1], step)
-    y = np.zeros_like(x)
-    y[x>midpoint] = 2
-    y = y-1+np.sin(0.1*x)
-    x = x-np.mean(x)
+    # y = np.zeros_like(x)
+    # y[x>midpoint] = 2
+    # y = y-1+np.sin(0.1*x)
+    # x = x-np.mean(x)
     # x = x/np.max(x)
+    y = np.sin(0.5*x)
     return x,y
 
 def get_fun(x):

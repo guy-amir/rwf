@@ -19,7 +19,10 @@ learn = model_conf.Learner(*model_conf.get_model(conf,data), loss_func, data)
 device = torch.device('cuda',0)
 torch.cuda.set_device(device)
 
-run = trainer.Runner(cb_funcs=conf.cbfs,conf=None)
+run = trainer.Runner(cb_funcs=conf.cbfs,conf=conf)
 run.fit(conf.epochs, learn)
 
+run.wavelets.prune(even_cutoff=False)
 run.recorder.plot_lr()
+
+print("hi")

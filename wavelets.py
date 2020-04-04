@@ -1,10 +1,12 @@
 import torch
 
 class psi():
-    def __init__(self,tree):
-        self.Vectors = tree.mu*(tree.y_hat-self.find_parent(tree.y_hat))
-        self.Norm = self.Vectors.norm(p=2,dim=1)
+    def __init__(self,runner):
+        model = runner.model
+        self.Vectors = model.mu*(model.y_hat-self.find_parent(model.y_hat))
+        self.Norm = self.Vectors.norm(p=2,dim=0)
         self.Norm_value,self.Norm_order = self.Norm.sort(descending=True)
+        self.intervals = model.conf.intervals
 
     def find_parent(self,y_hat):
         y_parent = y_hat.new(y_hat.size())
@@ -14,15 +16,6 @@ class psi():
             y_parent[2*ii+1:2*ii+3] = y_hat[ii]
 
         return y_parent
-
-    def find_child(self,pi):
-        child_tree = pi.new(pi.size()[0],2)
-        n_parent_nodes = int(pi.size(0)/2)
-        for ii in range(pi.size()[0]//2):
-            child_tree[ii,0]=2*ii+1
-            child_tree[ii,1]=2*ii+2
-
-        return child_tree
 
     
     def cutoff(self,N):
