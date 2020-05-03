@@ -40,7 +40,6 @@ class Forest(nn.Module):
     def forward(self, xb,yb=None):
         self.predictions = []
         if self.training:
-
             self.y_hat_avg= []
         self.mu = []
 

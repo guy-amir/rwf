@@ -20,12 +20,13 @@ class parameters():
         self.n_trees = 1
 
         #Tree parameters:
-        self.tree_depth = 10
+        self.tree_depth = 5
+        self.cascading = True
         # self.single_sigmoid = False
         # self.softmax_normalization = True ##! replace softmax_normalization in tree_conf
 
         #Training parameters:
-        self.epochs = 200
+        self.epochs = 10
         self.batch_size = 64
         self.one_batch = True
         self.learning_rate = 0.1
@@ -33,7 +34,7 @@ class parameters():
 
         #Wavelet parameters:
         self.wavelets = True
-        self.intervals = 30
+        self.intervals = 200
    
 
         #Callback parameters

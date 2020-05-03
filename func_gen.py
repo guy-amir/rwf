@@ -11,14 +11,29 @@ def step_gen(range = (0,10),step=0.1):
     # y = y-1+np.sin(0.1*x)
     # x = x-np.mean(x)
     # x = x/np.max(x)
+    y = np.sin(x)
+    return x,y
+
+def ugly_sine(range = (0,10),step=0.1):
+    start = range[0]
+    end = range[1]
+    interval = end-start
+
+    x = np.arange(start,end,step)
+
     y = np.sin(0.5*x)
+
+    steps = np.ones(len(x))
+    y[x<(start+int(interval/3))] = y[x<(start+int(interval/3))]-1
+    y[x>(start+int(2*interval/3))] = y[x>(start+int(2*interval/3))]+1
+
     return x,y
 
 def get_fun(x):
     # y = np.zeros_like(x)
     # y[x>midpoint] = 2
     # y = y-1
-    y = np.sin(0.1*x)
+    y = np.sin(0.05*x)
     return y
 
 def split(x,y,percent=0.33):
