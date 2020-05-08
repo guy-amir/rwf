@@ -17,34 +17,41 @@ def get_model(conf,data):
     
     model = Forest(conf,data)
     optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate) # , weight_decay=conf.weight_decay)
+    loss_func =  torch.nn.MSELoss()
 
-    return model, optimizer
-
-# class tree_layers(nn.Module):
-#     def __init__(self,input_dim):
-#         super(tree_layers, self).__init__()
-#         self.n_nodes = 15
-#         self.linears = nn.ModuleList([nn.Linear(input_dim, input_dim) for i in range(self.n_nodes)])
-#         print(self.linears)
+    return model, optimizer, loss_func
 
 class Forest(nn.Module):
     def __init__(self, conf, data):
         super(Forest, self).__init__()
         self.trees = nn.ModuleList()
         self.conf = conf
+        self.n_features = data.features4tree
 
+        #The neural network that feeds into the trees:
+        self.prenet = nn.Sequential(nn.Linear(self.n_features, 16), nn.LeakyReLU(),nn.BatchNorm1d(num_features=16), nn.Linear(16, self.n_features), nn.LeakyReLU(),nn.BatchNorm1d(num_features=self.n_features))
+
+        
         for _ in range(self.conf.n_trees):
             tree = Tree(conf, data)
             self.trees.append(tree)
 
-    def forward(self, xb,yb=None):
+    def forward(self, xb,yb=None,layer=None):
+        # if layer==None:
+
         self.predictions = []
         if self.training:
             self.y_hat_avg= []
         self.mu = []
 
+        if (self.conf.use_prenet == True):
+            xb = self.prenet(xb)
+
+        if (self.conf.use_tree == False):
+            return xb
+
         for tree in self.trees: 
-                
+            
             #construct routing probability tree:
             mu = tree(xb)
 
@@ -88,7 +95,8 @@ class Tree(nn.Module):
         self.conf = conf
 
         ##! attend to number of features!
-        self.prenet = nn.Sequential(nn.Linear(self.n_features, 16), nn.LeakyReLU(),nn.BatchNorm1d(num_features=16), nn.Linear(16, self.n_features), nn.LeakyReLU(),nn.BatchNorm1d(num_features=self.n_features))
+        #prenet shouldn't be in tree
+        
         # self.fc1 = nn.ModuleList([nn.Linear(self.n_features, self.n_features).float() for i in range(self.n_nodes)])
         # self.bn1 = nn.ModuleList([nn.BatchNorm1d(num_features=self.n_features).float() for i in range(self.n_nodes)])
         self.fc = nn.ModuleList([nn.Linear(self.n_features, self.n_features).float() for i in range(self.n_nodes)])
@@ -97,17 +105,10 @@ class Tree(nn.Module):
 
     def forward(self, x, save_flag = False):
         self.d = []
-        if (self.conf.use_prenet == True):
-            x = self.prenet(x)
 
-        if (self.conf.use_tree == False):
-            return x
-
-        for layer in self.fc:
-            l = layer(x)
-            # b = bn1(l)
-            # r = torch.sigmoid(x)
-            self.d.append(self.decision(l))
+        for node in self.fc:
+            n = node(x)
+            self.d.append(self.decision(n))
         self.d = torch.stack(self.d).permute(1,0,2) #[batch_size,n_leafs,1]
         # self.d=torch.unsqueeze(self.d,dim=2)# ->[batch_size,n_leaf,1]
             #GG^ x[batch size, feature_length] mm with feature_mask[feature_length,n_leaf]
@@ -122,25 +123,31 @@ class Tree(nn.Module):
         mu = torch.ones(batch_size,2,1).cuda()
         ##! may need to update CUDA
         
-        begin_idx = 1
-        end_idx = 2
-        for n_layer in range(0, self.depth):
+        for tree_level in range(0, self.depth):
+            [begin_idx, end_idx] = level2node_delta(tree_level)
             # mu stores the probability a sample is routed at certain node
             # repeat it to be multiplied for left and right routing
             nu = mu[:, begin_idx:, :].repeat(1, 1, 2)
-            # the routing probability at n_layer
-            _decision = decision[:, begin_idx:end_idx, :] # -> [batch_size,2**n_layer,2]
+            # the routing probability at tree_level
+            _decision = decision[:, begin_idx:end_idx, :] # -> [batch_size,2**tree_level,2]
             #GG^ original decision tensor is [batch size, leaf_number,decision&compliment]
-            nu = nu*_decision # -> [batch_size,2**n_layer,2]
-            begin_idx = end_idx
-            end_idx = begin_idx + 2 ** (n_layer+1)
+            nu = nu*_decision # -> [batch_size,2**tree_level,2]
+
             # merge left and right nodes to the same layer
             nu = nu.view(batch_size, -1, 1)
             #GG print(f'begin_idx: {begin_idx}, end_idx {end_idx}, delta {-begin_idx+end_idx}')
             mu = torch.cat((mu,nu),1)
 
         mu = mu.squeeze(-1)
-        mu[:,0] = 0
+        mu[:,0] = 1 #define the first value in mu (the non-existing zeroth tree) as 1, don't worry, we don't use it anyway.
         
         return mu
 
+
+def level2nodes(tree_level):
+    return 2**(tree_level+1)
+
+def level2node_delta(tree_level):
+    start = level2nodes(tree_level-1)
+    end = level2nodes(tree_level)
+    return [start,end]

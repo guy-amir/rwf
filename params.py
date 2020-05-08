@@ -20,13 +20,13 @@ class parameters():
         self.n_trees = 1
 
         #Tree parameters:
-        self.tree_depth = 5
+        self.tree_depth = 10
         self.cascading = True
         # self.single_sigmoid = False
         # self.softmax_normalization = True ##! replace softmax_normalization in tree_conf
 
         #Training parameters:
-        self.epochs = 10
+        self.epochs = 200
         self.batch_size = 64
         self.one_batch = True
         self.learning_rate = 0.1
